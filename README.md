@@ -1,1 +1,1 @@
-Web app build with Go templates, Bootstrap, PostgreSQL.
+Web app built with Go templates, Bootstrap, PostgreSQL.
