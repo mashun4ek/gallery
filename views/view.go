@@ -7,11 +7,14 @@ import (
 )
 
 var (
-	LayoutDir   = "views/layouts/"
-	TemplateExt = ".gohtml"
+	LayoutDir   string = "views/layouts/"
+	TemplateDir string = "views/"
+	TemplateExt string = ".gohtml"
 )
 
 func NewView(layout string, files ...string) *View {
+	addTemplatePath(files)
+	addTemplateExt(files)
 	files = append(files, layoutFiles()...)
 	t, err := template.ParseFiles(files...)
 	if err != nil {
@@ -29,8 +32,15 @@ type View struct {
 	Layout   string
 }
 
+func (v *View) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if err := v.Render(w, nil); err != nil {
+		panic(err)
+	}
+}
+
 // to render the view
 func (v *View) Render(w http.ResponseWriter, data interface{}) error {
+	w.Header().Set("Content-Type", "text/html")
 	return v.Template.ExecuteTemplate(w, v.Layout, data)
 }
 
@@ -46,3 +56,19 @@ func layoutFiles() []string {
 // "views/layouts/footer.gohtml",
 // "views/layouts/navbar.gohtml",
 // "views/layouts/bootstrap.gohtml",
+
+// takes slice of string (filepath for templates) and prepends TemplateDir directory
+// eg the input {"home"} => {"views/home"} if TemplateDir=="views/"
+func addTemplatePath(files []string) {
+	for i, f := range files {
+		files[i] = TemplateDir + f
+	}
+}
+
+// appends extention to string
+// Eg {"home"} => {"home.gohtml"}
+func addTemplateExt(files []string) {
+	for i, f := range files {
+		files[i] = f + TemplateExt
+	}
+}
