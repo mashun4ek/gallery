@@ -27,5 +27,10 @@ func (u *Users) New(w http.ResponseWriter, r *http.Request) {
 
 // create a new user account POST /signup
 func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "This is create methods")
+	if err := r.ParseForm(); err != nil {
+		panic(err)
+	}
+	fmt.Fprintln(w, r.PostForm["email"])
+	fmt.Fprintln(w, r.PostForm["email"])
+
 }
