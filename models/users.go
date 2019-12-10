@@ -30,9 +30,19 @@ type UserService struct {
 }
 
 // DestructiveReset drops user table and rebuilds it
-func (us *UserService) DestructiveReset() {
-	us.db.DropTableIfExists(&User{})
-	us.db.AutoMigrate(&User{})
+func (us *UserService) DestructiveReset() error {
+	if err := us.db.DropTableIfExists(&User{}).Error; err != nil {
+		return err
+	}
+	return us.AutoMigrate()
+}
+
+// AutoMigrate will attempt to automatically migrate the user table
+func (us *UserService) AutoMigrate() error {
+	if err := us.db.AutoMigrate(&User{}).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 // ByID will look up by the id provided
@@ -94,5 +104,5 @@ func (us *UserService) Close() error {
 type User struct {
 	gorm.Model
 	Name  string
-	Email string `girm:"not null;unique_index"`
+	Email string `gorm:"unique;not null"`
 }
