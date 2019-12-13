@@ -5,6 +5,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -12,7 +13,12 @@ var (
 	ErrNotFound = errors.New("models: resource not found")
 	// ErrInvalidID when invalid ID provided (Delete method)
 	ErrInvalidID = errors.New("models: ID must be > 0")
+	// ErrInvalidPassword is returned when invalid password is used to authenticate a user
+	ErrInvalidPassword = errors.New("models: Incorrect password provided")
 )
+
+// pepper
+const userPwPepper = "unique8!@gallery!"
 
 func NewUserService(connectionInfo string) (*UserService, error) {
 	db, err := gorm.Open("postgres", connectionInfo)
@@ -64,6 +70,25 @@ func (us *UserService) ByEmail(email string) (*User, error) {
 	return &user, err
 }
 
+// Authenticate to Authenticate the user with provided email and password
+// if user doesn't exist
+func (us *UserService) Authenticate(email, password string) (*User, error) {
+	foundUser, err := us.ByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(foundUser.PasswordHash), []byte(password+userPwPepper))
+	if err != nil {
+		switch err {
+		case bcrypt.ErrMismatchedHashAndPassword:
+			return nil, ErrInvalidPassword
+		default:
+			return nil, err
+		}
+	}
+	return foundUser, nil
+}
+
 // first will query using the provided gorm.DB and get the first item returned and place it into dst
 // If nothing is found in the query, it will return ERRNOtFound
 func first(db *gorm.DB, dst interface{}) error {
@@ -79,6 +104,13 @@ func (us *UserService) Create(user *User) error {
 	// if user.ID > 0 {
 	// 	return NotNewRecor
 	// }
+	pwBytes := []byte(user.Password + userPwPepper)
+	hashedBytes, err := bcrypt.GenerateFromPassword(pwBytes, bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	user.PasswordHash = string(hashedBytes)
+	user.Password = ""
 	return us.db.Create(user).Error
 }
 
@@ -105,4 +137,7 @@ type User struct {
 	gorm.Model
 	Name  string
 	Email string `gorm:"unique;not null"`
+	// don't include password to database, just include password hash
+	Password     string `gorm:"-"`
+	PasswordHash string `gorm:"not null"`
 }

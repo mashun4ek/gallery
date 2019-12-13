@@ -1,24 +1,20 @@
 {{ define "yield" }}
 <div class="row justify-content-center">
     <div class="card text-white bg-dark col-sm-9 col-md-4 col-md-offset-4">
-        <div class="card-header text-center">Sign Up</div>
+        <div class="card-header text-center">Login</div>
         <div class="card-body text-dark">
-            {{ template "signupForm"}}
+            {{ template "loginForm"}}
         </div>
         <div class="card-footer text-muted">
-            Already have account? <a href="/login">Sign In</a>
+            Don't have account? <a href="/signup">Sign Up</a>
         </div>
     </div>
 </div>
 {{ end }}
 
-{{ define "signupForm"}}
+{{ define "loginForm"}}
     
-            <form action="/signup" method="POST">
-                <div class="form-group">
-                    <label for="name">Name</label>
-                    <input type="text" name="name" class="form-control" id="name" aria-describedby="emailHelp" placeholder="Your full name">
-                </div>
+            <form action="/login" method="POST">
                 <div class="form-group">
                     <label for="email">Email address</label>
                     <input type="email" name="email" class="form-control" id="email" aria-describedby="emailHelp" placeholder="Email">
@@ -27,7 +23,7 @@
                     <label for="password">Password</label>
                     <input type="password" name="password" class="form-control" id="password" placeholder="Password">
                 </div>
-                <button type="submit" class="btn btn-light">Sign Up</button>
+                <button type="submit" class="btn btn-light">Sign In</button>
             </form>
         
 {{ end }}
