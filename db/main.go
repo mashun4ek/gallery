@@ -31,7 +31,7 @@ func main() {
 		panic(err)
 	}
 	defer us.Close()
-	us.DestructiveReset()
+	us.AutoMigrate()
 	user := models.User{
 		Name:  "Michael Scott",
 		Email: "DM",

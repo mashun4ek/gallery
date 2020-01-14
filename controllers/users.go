@@ -7,11 +7,12 @@ import (
 	"github.com/gorilla/schema"
 
 	"github.com/mashun4ek/webdevcalhoun/gallery/models"
+	"github.com/mashun4ek/webdevcalhoun/gallery/rand"
 	"github.com/mashun4ek/webdevcalhoun/gallery/views"
 )
 
 // NewUser is used to create a new Users controller
-func NewUsers(us *models.UserService) *Users {
+func NewUsers(us models.UserService) *Users {
 	return &Users{
 		NewView:   views.NewView("bootstrap", "users/new"),
 		LoginView: views.NewView("bootstrap", "users/login"),
@@ -22,7 +23,7 @@ func NewUsers(us *models.UserService) *Users {
 type Users struct {
 	NewView   *views.View
 	LoginView *views.View
-	us        *models.UserService
+	us        models.UserService
 }
 
 type SignupForm struct {
@@ -53,7 +54,11 @@ func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	signIn(w, &user)
+	err := u.signIn(w, &user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/cookietest", http.StatusFound)
 }
 
@@ -93,26 +98,50 @@ func (u *Users) Login(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	signIn(w, user)
-	http.Redirect(w, r, "/cookietest", http.StatusFound)
-}
-
-func (u *Users) CookieTest(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("email")
+	err = u.signIn(w, user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Fprintln(w, "Email is: ", cookie.Value)
+	http.Redirect(w, r, "/cookietest", http.StatusFound)
+}
+
+func (u *Users) CookieTest(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("remember_token")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	user, err := u.us.ByRemember(cookie.Value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprintln(w, "Token is: ", cookie.Value)
+	fmt.Fprintln(w, user)
 }
 
 // signIn sets a cookie
-func signIn(w http.ResponseWriter, user *models.User) {
+func (u *Users) signIn(w http.ResponseWriter, user *models.User) error {
+	if user.Remember == "" {
+		token, err := rand.RememberToken()
+		if err != nil {
+			return err
+		}
+		user.Remember = token
+		err = u.us.Update(user)
+		if err != nil {
+			return err
+		}
+	}
 	cookie := http.Cookie{
-		Name:  "email",
-		Value: user.Email,
+		Name:  "remember_token",
+		Value: user.Remember,
+		// disable JavaScript to avoid XSS (cross site scripting)
+		HttpOnly: true,
 	}
 	http.SetCookie(w, &cookie)
+	return nil
 }
 
 // to avoid cookie tampering (editing), cookie theft
