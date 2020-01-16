@@ -57,18 +57,14 @@ type UserService interface {
 }
 
 // NewUserService returns UserService
-func NewUserService(connectionInfo string) (UserService, error) {
-	ug, err := newUserGorm(connectionInfo)
-	if err != nil {
-		return nil, err
-	}
-
+func NewUserService(db *gorm.DB) UserService {
+	ug := &userGorm{db}
 	hmac := hash.NewHMAC(hmacSecretKey)
 	uv := newUserValidator(ug, hmac)
 	// chaining
 	return &userService{
 		UserDB: uv,
-	}, nil
+	}
 }
 
 // to make sure that userService's type is UserService
@@ -308,17 +304,6 @@ func (uv *userValidator) emailIsAvail(user *User) error {
 		return ErrEmailTaken
 	}
 	return nil
-}
-
-func newUserGorm(connectionInfo string) (*userGorm, error) {
-	db, err := gorm.Open("postgres", connectionInfo)
-	if err != nil {
-		return nil, err
-	}
-	db.LogMode(true)
-	return &userGorm{
-		db: db,
-	}, nil
 }
 
 // DestructiveReset drops user table and rebuilds it
