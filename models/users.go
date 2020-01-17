@@ -41,11 +41,6 @@ type UserDB interface {
 	Create(user *User) error
 	Update(user *User) error
 	Delete(id uint) error
-
-	// Close used to close a DB connection
-	Close() error
-
-	AutoMigrate() error
 }
 
 // UserService is a set of methods used to manipulate and work with the user model
@@ -147,7 +142,19 @@ func (uv *userValidator) ByRemember(token string) (*User, error) {
 
 // Create user normalization
 func (uv *userValidator) Create(user *User) error {
-	err := runUserValFuncs(user, uv.passwordRequired, uv.passwordLength, uv.bcryptPassword, uv.passwordHashRequired, uv.setRememberIfUnset, uv.rememberMinBytes, uv.hmacRemember, uv.rememberHashRequired, uv.normalizeEmail, uv.requireEmail, uv.emailFormat, uv.emailIsAvail)
+	err := runUserValFuncs(user,
+		uv.passwordRequired,
+		uv.passwordLength,
+		uv.bcryptPassword,
+		uv.passwordHashRequired,
+		uv.setRememberIfUnset,
+		uv.rememberMinBytes,
+		uv.hmacRemember,
+		uv.rememberHashRequired,
+		uv.normalizeEmail,
+		uv.requireEmail,
+		uv.emailFormat,
+		uv.emailIsAvail)
 	if err != nil {
 		return err
 	}
@@ -156,7 +163,18 @@ func (uv *userValidator) Create(user *User) error {
 
 // Update user normalization: will hash a remember token if it is provided
 func (uv *userValidator) Update(user *User) error {
-	err := runUserValFuncs(user, uv.passwordRequired, uv.passwordLength, uv.bcryptPassword, uv.passwordHashRequired, uv.rememberMinBytes, uv.hmacRemember, uv.rememberHashRequired, uv.normalizeEmail, uv.requireEmail, uv.emailFormat, uv.emailIsAvail)
+	err := runUserValFuncs(user,
+		// uv.passwordRequired,
+		uv.passwordLength,
+		uv.bcryptPassword,
+		uv.passwordHashRequired,
+		uv.rememberMinBytes,
+		uv.hmacRemember,
+		uv.rememberHashRequired,
+		uv.normalizeEmail,
+		uv.requireEmail,
+		uv.emailFormat,
+		uv.emailIsAvail)
 	if err != nil {
 		return err
 	}
@@ -198,7 +216,7 @@ func (uv *userValidator) bcryptPassword(user *User) error {
 
 func (uv *userValidator) passwordLength(user *User) error {
 	if user.Password == "" {
-		return ErrPasswordRequired
+		return nil
 	}
 	if len(user.Password) < 8 {
 		return ErrPasswordTooShort
@@ -256,7 +274,7 @@ func (uv *userValidator) rememberMinBytes(user *User) error {
 
 func (uv *userValidator) rememberHashRequired(user *User) error {
 	if user.RememberHash == "" {
-		return ErrRememberHashRequired
+		return ErrRememberRequired
 	}
 	return nil
 }
@@ -306,22 +324,6 @@ func (uv *userValidator) emailIsAvail(user *User) error {
 	return nil
 }
 
-// DestructiveReset drops user table and rebuilds it
-func (ug *userGorm) DestructiveReset() error {
-	if err := ug.db.DropTableIfExists(&User{}).Error; err != nil {
-		return err
-	}
-	return ug.AutoMigrate()
-}
-
-// AutoMigrate will attempt to automatically migrate the user table
-func (ug *userGorm) AutoMigrate() error {
-	if err := ug.db.AutoMigrate(&User{}).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
 // ByID will look up by the id provided
 // 1 - user, nil
 // 2 - nil, ErrNotFound
@@ -366,11 +368,6 @@ func (ug *userGorm) Update(user *User) error {
 func (ug *userGorm) Delete(id uint) error {
 	user := User{Model: gorm.Model{ID: id}}
 	return ug.db.Delete(&user).Error
-}
-
-// Close closes database connection
-func (ug *userGorm) Close() error {
-	return ug.db.Close()
 }
 
 // first will query using the provided gorm.DB and get the first item returned and place it into dst

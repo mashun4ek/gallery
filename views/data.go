@@ -1,5 +1,7 @@
 package views
 
+import "github.com/mashun4ek/webdevcalhoun/gallery/models"
+
 const (
 	// AlertLvError is used for error alerts
 	AlertLvError   = "danger"
@@ -21,6 +23,7 @@ type Alert struct {
 type Data struct {
 	// use pionter so you can use nil
 	Alert *Alert
+	User  *models.User
 	Yield interface{}
 }
 
