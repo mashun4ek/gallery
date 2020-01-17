@@ -129,7 +129,7 @@ func (uv *userValidator) ByEmail(email string) (*User, error) {
 	return uv.UserDB.ByEmail(user.Email)
 }
 
-// ByRemember will hash a remeber token and then call ByRemember on the subsequent UserDB layer
+// ByRemember will hash a remember token and then call ByRemember on the subsequent UserDB layer
 func (uv *userValidator) ByRemember(token string) (*User, error) {
 	user := User{
 		RememberHash: token,
@@ -179,13 +179,6 @@ func (uv *userValidator) Update(user *User) error {
 		return err
 	}
 	return uv.UserDB.Update(user)
-}
-
-// make sure type is matching UserDB type
-var _ UserDB = &userGorm{}
-
-type userGorm struct {
-	db *gorm.DB
 }
 
 // Delete user
@@ -324,6 +317,13 @@ func (uv *userValidator) emailIsAvail(user *User) error {
 	return nil
 }
 
+// make sure type is matching UserDB type
+var _ UserDB = &userGorm{}
+
+type userGorm struct {
+	db *gorm.DB
+}
+
 // ByID will look up by the id provided
 // 1 - user, nil
 // 2 - nil, ErrNotFound
@@ -332,7 +332,10 @@ func (ug *userGorm) ByID(id uint) (*User, error) {
 	var user User
 	db := ug.db.Where("id = ?", id)
 	err := first(db, &user)
-	return &user, err
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 // ByEmail looks up a user by email
@@ -346,7 +349,6 @@ func (ug *userGorm) ByEmail(email string) (*User, error) {
 // ByRemember looks up a user by given remember token and return that user, expects hashed token
 func (ug *userGorm) ByRemember(rememberHash string) (*User, error) {
 	var user User
-
 	err := first(ug.db.Where("remember_hash = ?", rememberHash), &user)
 	if err != nil {
 		return nil, err
@@ -361,7 +363,8 @@ func (ug *userGorm) Create(user *User) error {
 
 // Update user
 func (ug *userGorm) Update(user *User) error {
-	return ug.db.Save(&user).Error
+	// return ug.db.Save(&user).Error
+	return ug.db.Save(user).Error
 }
 
 // Delete user
