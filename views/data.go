@@ -1,6 +1,11 @@
 package views
 
-import "github.com/mashun4ek/webdevcalhoun/gallery/models"
+import (
+	"html/template"
+	"log"
+
+	"github.com/mashun4ek/webdevcalhoun/gallery/models"
+)
 
 const (
 	// AlertLvError is used for error alerts
@@ -24,6 +29,7 @@ type Data struct {
 	// use pionter so you can use nil
 	Alert *Alert
 	User  *models.User
+	CSRF  template.HTML
 	Yield interface{}
 }
 
@@ -34,6 +40,7 @@ func (d *Data) SetAlert(err error) {
 			Message: pErr.Public(),
 		}
 	} else {
+		log.Println(err)
 		d.Alert = &Alert{
 			Level:   AlertLvError,
 			Message: AlertMsgGeneric,

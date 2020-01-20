@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/mashun4ek/webdevcalhoun/gallery/context"
 	"github.com/mashun4ek/webdevcalhoun/gallery/models"
@@ -39,6 +40,12 @@ func (mw *RequireUser) RUMFn(next http.HandlerFunc) http.HandlerFunc {
 
 func (mw *User) RUMFn(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		// if static asset or image we will not need to look up the current user
+		if strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/images/") {
+			next(w, r)
+			return
+		}
 		cookie, err := r.Cookie("remember_token")
 		if err != nil {
 			next(w, r)

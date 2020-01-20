@@ -127,7 +127,10 @@ func (gg *galleryGorm) Delete(id uint) error {
 
 func (gg *galleryGorm) ByUserID(userID uint) ([]Gallery, error) {
 	var galleries []Gallery
-	gg.db.Where("user_id = ?", userID).Find(&galleries)
+	err := gg.db.Where("user_id = ?", userID).Find(&galleries).Error
+	if err != nil {
+		return nil, err
+	}
 	return galleries, nil
 }
 

@@ -72,10 +72,8 @@ type LoginForm struct {
 // Login is used to verify provided email address and password and then
 // log the user in if they are correct
 func (u *Users) Login(w http.ResponseWriter, r *http.Request) {
-	// vd := views.Data{}
-	// form := LoginForm{}
-	var vd views.Data
-	var form LoginForm
+	vd := views.Data{}
+	form := LoginForm{}
 	if err := parseForm(r, &form); err != nil {
 		vd.SetAlert(err)
 		u.LoginView.Render(w, r, vd)
