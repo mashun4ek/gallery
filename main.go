@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/mashun4ek/webdevcalhoun/gallery/email"
+	"flag"
 	"fmt"
 	"net/http"
 
@@ -12,35 +14,39 @@ import (
 	"github.com/mashun4ek/webdevcalhoun/gallery/rand"
 )
 
-// temporary here
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "mariaker"
-	password = "nopassword"
-	dbname   = "gallery"
-)
-
 func main() {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
-	services, err := models.NewServices(psqlInfo)
+	boolPtr := flag.Bool("prod", false, "Provide this flag in production. This ensures that a .config file is provided before the app starts.")
+	flag.Parse()
+
+	cfg := LoadConfig(*boolPtr)
+	dbCfg := cfg.Database
+	services, err := models.NewServices(
+		models.WithGorm(dbCfg.Dialect(), dbCfg.ConnectionInfo()),
+		models.WithLogMode(!cfg.IsProd()),
+		models.WithUser(cfg.Pepper, cfg.HMAC),
+		models.WithGallery(),
+		models.WithImage(),
+	)
 	must(err)
 	defer services.Close()
 	// services.DestructiveReset()
 	services.AutoMigrate()
 
+	mgCfg := cfg.Mailgun
+	emailer := email.NewClient(
+		email.WithSender("MyGravitation Support", "support@sandbox0a473d6bb8c94265aa28ced67515768c.mailgun.org"),
+		email.WithMailgun(mgCfg.domain. mgCfg.APIKey)
+	)
+
 	r := mux.NewRouter()
 	staticC := controllers.NewStatic()
-	usersC := controllers.NewUsers(services.User)
+	usersC := controllers.NewUsers(services.User, emailer)
 	galleriesC := controllers.NewGalleries(services.Gallery, services.Image, r)
 
-	// TODO update it to be config variable
-	isProd := false
 	b, err := rand.Bytes(32)
 	must(err)
 	// 32 bytes generated auth key
-	csrfMw := csrf.Protect(b, csrf.Secure(isProd))
+	csrfMw := csrf.Protect(b, csrf.Secure(cfg.IsProd()))
 
 	userMw := middleware.User{
 		UserService: services.User,
@@ -53,6 +59,7 @@ func main() {
 	r.HandleFunc("/signup", usersC.Create).Methods("POST")
 	r.Handle("/login", usersC.LoginView).Methods("GET")
 	r.HandleFunc("/login", usersC.Login).Methods("POST")
+	r.HandleFunc("/logout", requireUserMw.RUMFn(usersC.Logout)).Methods("POST")
 
 	// Image routes
 	imageHandler := http.FileServer(http.Dir("./images/"))
@@ -75,8 +82,8 @@ func main() {
 	assetHandler = http.StripPrefix("/assets/", assetHandler)
 	r.PathPrefix("/assets/").Handler(assetHandler)
 
-	fmt.Println("Starting the server on :8080...")
-	http.ListenAndServe(":8080", csrfMw(userMw.RequireUserMiddleware(r)))
+	fmt.Printf("Starting the server on :%d...\n", cfg.Port)
+	http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), csrfMw(userMw.RequireUserMiddleware(r)))
 }
 
 func must(err error) {
