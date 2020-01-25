@@ -3,6 +3,7 @@ package models
 import (
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/jinzhu/gorm"
 	"github.com/mashun4ek/webdevcalhoun/gallery/hash"
@@ -17,12 +18,12 @@ var emailRegex = regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,16}$
 type User struct {
 	gorm.Model
 	Name  string
-	Email string `gorm:"unique;not null"`
+	Email string `gorm:"unique_index;not null"`
 	// don't include password to database, just include password hash
 	Password     string `gorm:"-"`
 	PasswordHash string `gorm:"not null"`
 	Remember     string `gorm:"-"`
-	RememberHash string `gorm:"not null;unique"`
+	RememberHash string `gorm:"not null;unique_index"`
 }
 
 // UserDB interface is used to interact with users table in database
@@ -43,6 +44,9 @@ type UserService interface {
 	// Authenticate will verify the provided email address and password are correct.
 	// if correct, the user to that email will be returned. Otherwise, error: ErrNotFound or ErrPasswordIncorrect or other error
 	Authenticate(email, password string) (*User, error)
+	// create reset token for the user found by email
+	InitiateReset(email string) (string, error)
+	CompleteReset(token, newPw string) (*User, error)
 	UserDB
 }
 
@@ -53,8 +57,9 @@ func NewUserService(db *gorm.DB, pepper, hmacKey string) UserService {
 	uv := newUserValidator(ug, hmac, pepper)
 	// chaining
 	return &userService{
-		UserDB: uv,
-		pepper: pepper,
+		UserDB:    uv,
+		pepper:    pepper,
+		pwResetDB: newPwResetValidator(&pwResetGorm{db}, hmac),
 	}
 }
 
@@ -64,7 +69,8 @@ var _ UserService = &userService{}
 // implementation of userService interface
 type userService struct {
 	UserDB
-	pepper string
+	pepper    string
+	pwResetDB pwResetDB
 }
 
 // Authenticate to Authenticate the user with provided email and password
@@ -84,6 +90,50 @@ func (us *userService) Authenticate(email, password string) (*User, error) {
 		}
 	}
 	return foundUser, nil
+}
+
+func (us *userService) InitiateReset(email string) (string, error) {
+	user, err := us.ByEmail(email)
+	if err != nil {
+		return "", err
+	}
+	pwr := pwReset{
+		UserID: user.ID,
+	}
+	if err := us.pwResetDB.Create(&pwr); err != nil {
+		return "", err
+	}
+	return pwr.Token, nil
+}
+
+func (us *userService) CompleteReset(token, newPw string) (*User, error) {
+	// 1. Lookup a pwReset using the token
+	pwr, err := us.pwResetDB.ByToken(token)
+	if err != nil {
+		if err == ErrNotFound {
+			return nil, ErrTokenInvalid
+		}
+		return nil, err
+	}
+	// 2. Make sure the token is < 12 hours old
+	if time.Now().Sub(pwr.CreatedAt) > (12 * time.Hour) {
+		return nil, ErrTokenInvalid
+	}
+	// 3. Lookup the user by pwReset.UserID
+	user, err := us.ByID(pwr.UserID)
+	if err != nil {
+		return nil, err
+	}
+	// 4. Update the user's password with new Password
+	user.Password = newPw
+	err = us.Update(user)
+	if err != nil {
+		return nil, err
+	}
+	// 5. Delete pwReset
+	us.pwResetDB.Delete(pwr.ID)
+	// 6. Return user, nil
+	return user, nil
 }
 
 type userValFunc func(*User) error

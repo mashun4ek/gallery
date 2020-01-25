@@ -8,43 +8,53 @@ import (
 )
 
 var (
-	wellcomeHTML = `Hi there!
+	welcomeText = `Hi there!
+
+	Welcome to MyGravitation! 
+	
+	Best,
+	Maria
+	`
+
+	welcomeHTML = `Hi there!
 <br/>
 Welcome to my awesome <a href="https://mygravitation.com>website!</a>.
 <br/>
 Stay tuned!
 MyGravitation`
-	wellcomeSubject = "Welcome to MyGravitation.com"
-	resetSubject    = "Instructions for resetting your password."
-	resetBaseURL    = "https://mygravitation/reset"
-	resetTextTmpl   = `Hi there!
+	welcomeSubject = "Welcome to MyGravitation.com"
+	resetSubject   = "Instructions for resetting your password."
+	resetBaseURL   = "https://mygravitation/reset"
 
-It appears that you have requested a password reset. If this was you, please follow the link below to update your password:
+	resetTextTmpl = `HELLO!
 
-%s
-
-If you are asked for a token, please use the following value:
+If you requested a password reset. please follow link below:
 
 %s
 
-If you didn't request a password reset you can safely ignore this email and your account will not be changed.
+If you are asked for a token. please use the following value:
 
-Best,
+%s
+
+If you didn't request, ignore this email.
+
+Best regards,
 MyGravitation Support
 `
-	resetHTMLTmpl = `Hi there!<br/>
+
+	resetHTMLTmpl = `HELLO!<br/>
 <br/>
-It appears that you have requested a password reset. If this was you, please follow the link below to update your password:<br/>
+If you requested a password reset. please follow link below:<br/>
 <br/>
 <a href="%s">%s</a><br/>
 <br/>
-If you are asked for a token, please use the following value:<br/>
+If you are asked for a token. please use the following value:<br/>
 <br/>
-%s<br/>
+%s
 <br/>
-If you didn't request a password reset you can safely ignore this email and your account will not be changed.<br/>
+If you didn't request, ignore this email.<br/>
 <br/>
-Best,<br/>
+Best regards,<br/>
 MyGravitation Support<br/>
 `
 )
@@ -82,7 +92,7 @@ type Client struct {
 
 func (c *Client) Welcome(toName, toEmail string) error {
 	message := mailgun.NewMessage(c.from, welcomeSubject, welcomeText, buildEmail(toName, toEmail))
-	message.SetHtml(wellcomeHTML)
+	message.SetHtml(welcomeHTML)
 	_, _, err := c.mg.Send(message)
 	return err
 }
@@ -91,13 +101,12 @@ func (c *Client) ResetPw(toEmail, token string) error {
 	v := url.Values{}
 	v.Set("token", token)
 	resetUrl := resetBaseURL + "?" + v.Encode()
-	resetText := fmt.Sprintf(resetTextTmpl, resetUrl, toEmail)
+	resetText := fmt.Sprintf(resetTextTmpl, resetUrl, token)
 	message := mailgun.NewMessage(c.from, resetSubject, resetText, toEmail)
 	resetHTML := fmt.Sprintf(resetHTMLTmpl, resetUrl, resetUrl, token)
 	message.SetHtml(resetHTML)
 	_, _, err := c.mg.Send(message)
 	return err
-
 }
 
 func buildEmail(name, email string) string {

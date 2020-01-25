@@ -35,6 +35,9 @@ func WithUser(pepper, hmacKey string) ServicesConfig {
 
 func WithGallery() ServicesConfig {
 	return func(s *Services) error {
+		// if s.db == nil {
+		// 	return ErrDBRequired
+		// }
 		s.Gallery = NewGalleryService(s.db)
 		return nil
 	}
@@ -43,6 +46,13 @@ func WithGallery() ServicesConfig {
 func WithImage() ServicesConfig {
 	return func(s *Services) error {
 		s.Image = NewImageService()
+		return nil
+	}
+}
+
+func WithOAuth() ServicesConfig {
+	return func(s *Services) error {
+		s.OAuth = NewOAuthService(s.db)
 		return nil
 	}
 }
@@ -66,6 +76,7 @@ type Services struct {
 	Gallery GalleryService
 	User    UserService
 	Image   ImageService
+	OAuth   OAuthService
 	db      *gorm.DB
 }
 
@@ -76,7 +87,7 @@ func (s *Services) Close() error {
 
 // DestructiveReset drops all tables and rebuilds them
 func (s *Services) DestructiveReset() error {
-	err := s.db.DropTableIfExists(&User{}, &Gallery{}).Error
+	err := s.db.DropTableIfExists(&User{}, &Gallery{}, &OAuth{}, &pwReset{}).Error
 	if err != nil {
 		return err
 	}
@@ -85,5 +96,5 @@ func (s *Services) DestructiveReset() error {
 
 // AutoMigrate will attempt to automatically migrate the user table
 func (s *Services) AutoMigrate() error {
-	return s.db.AutoMigrate(&User{}, &Gallery{}).Error
+	return s.db.AutoMigrate(&User{}, &Gallery{}, &OAuth{}, &pwReset{}).Error
 }

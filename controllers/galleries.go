@@ -1,3 +1,4 @@
+// checked
 package controllers
 
 import (
@@ -67,7 +68,7 @@ func (g *Galleries) Create(w http.ResponseWriter, r *http.Request) {
 		g.New.Render(w, r, vd)
 		return
 	}
-	url, err := g.r.Get(ShowGallery).URL("id", fmt.Sprintf("%v", gallery.ID))
+	url, err := g.r.Get(EditGallery).URL("id", fmt.Sprintf("%v", gallery.ID))
 	if err != nil {
 		log.Println(err)
 		http.Redirect(w, r, "/galleries", http.StatusFound)
@@ -76,7 +77,7 @@ func (g *Galleries) Create(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url.Path, http.StatusFound)
 }
 
-// GET /galleries/:id/edit
+// GET /galleries
 func (g *Galleries) Index(w http.ResponseWriter, r *http.Request) {
 	user := context.User(r.Context())
 	galleries, err := g.gs.ByUserID(user.ID)
@@ -114,7 +115,6 @@ func (g *Galleries) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 	var vd views.Data
 	vd.Yield = gallery
-	// vd.User = user
 	g.EditView.Render(w, r, vd)
 }
 
@@ -245,6 +245,7 @@ func (g *Galleries) Delete(w http.ResponseWriter, r *http.Request) {
 		vd.SetAlert(err)
 		vd.Yield = gallery
 		g.EditView.Render(w, r, vd)
+		return
 	}
 	http.Redirect(w, r, "/galleries", http.StatusFound)
 }

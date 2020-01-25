@@ -11,4 +11,5 @@ require (
 	github.com/mailgun/mailgun-go v2.0.0+incompatible
 	github.com/mailgun/mailgun-go/v3 v3.6.4
 	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 )

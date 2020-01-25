@@ -1,10 +1,12 @@
 package main
 
 import (
-	"github.com/mashun4ek/webdevcalhoun/gallery/email"
 	"flag"
 	"fmt"
 	"net/http"
+
+	"github.com/mashun4ek/webdevcalhoun/gallery/email"
+	"golang.org/x/oauth2"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -26,6 +28,7 @@ func main() {
 		models.WithUser(cfg.Pepper, cfg.HMAC),
 		models.WithGallery(),
 		models.WithImage(),
+		models.WithOAuth(),
 	)
 	must(err)
 	defer services.Close()
@@ -35,7 +38,7 @@ func main() {
 	mgCfg := cfg.Mailgun
 	emailer := email.NewClient(
 		email.WithSender("MyGravitation Support", "support@sandbox0a473d6bb8c94265aa28ced67515768c.mailgun.org"),
-		email.WithMailgun(mgCfg.domain. mgCfg.APIKey)
+		email.WithMailgun(mgCfg.Domain, mgCfg.APIKey),
 	)
 
 	r := mux.NewRouter()
@@ -43,11 +46,23 @@ func main() {
 	usersC := controllers.NewUsers(services.User, emailer)
 	galleriesC := controllers.NewGalleries(services.Gallery, services.Image, r)
 
+	configs := make(map[string]*oauth2.Config)
+	configs[models.OAuthDropbox] = &oauth2.Config{
+		ClientID:     cfg.Dropbox.ID,
+		ClientSecret: cfg.Dropbox.Secret,
+		Endpoint: oauth2.Endpoint{
+			TokenURL: cfg.Dropbox.TokenURL,
+			AuthURL:  cfg.Dropbox.AuthURL,
+		},
+		RedirectURL: "http://localhost:8080/oauth/dropbox/callback",
+	}
+
+	oauthsC := controllers.NewOAuths(services.OAuth, configs)
+
 	b, err := rand.Bytes(32)
 	must(err)
 	// 32 bytes generated auth key
 	csrfMw := csrf.Protect(b, csrf.Secure(cfg.IsProd()))
-
 	userMw := middleware.User{
 		UserService: services.User,
 	}
@@ -55,15 +70,21 @@ func main() {
 
 	r.Handle("/", staticC.Home).Methods("GET")
 	r.Handle("/contact", staticC.Contact).Methods("GET")
-	r.Handle("/signup", usersC.NewView).Methods("GET")
+	r.HandleFunc("/signup", usersC.New).Methods("GET")
 	r.HandleFunc("/signup", usersC.Create).Methods("POST")
 	r.Handle("/login", usersC.LoginView).Methods("GET")
 	r.HandleFunc("/login", usersC.Login).Methods("POST")
 	r.HandleFunc("/logout", requireUserMw.RUMFn(usersC.Logout)).Methods("POST")
 
+	// reset passwords
+	r.Handle("/forgot", usersC.ForgotPwView).Methods("GET")
+	r.HandleFunc("/forgot", usersC.InitiateReset).Methods("POST")
+	r.HandleFunc("/reset", usersC.ResetPw).Methods("GET")
+	r.HandleFunc("/reset", usersC.CompleteReset).Methods("POST")
+
 	// Image routes
 	imageHandler := http.FileServer(http.Dir("./images/"))
-	r.PathPrefix("/images/").Handler(http.StripPrefix("/images", imageHandler))
+	r.PathPrefix("/images/").Handler(http.StripPrefix("/images/", imageHandler))
 
 	// Gallery routes
 	r.Handle("/galleries", requireUserMw.RUMFn(galleriesC.Index)).Methods("GET")
@@ -73,9 +94,14 @@ func main() {
 	r.HandleFunc("/galleries/{id:[0-9]+}/edit", requireUserMw.RUMFn(galleriesC.Edit)).Methods("GET").Name(controllers.EditGallery)
 	r.HandleFunc("/galleries/{id:[0-9]+}/update", requireUserMw.RUMFn(galleriesC.Update)).Methods("POST")
 	r.HandleFunc("/galleries/{id:[0-9]+}/delete", requireUserMw.RUMFn(galleriesC.Delete)).Methods("POST")
-
 	r.HandleFunc("/galleries/{id:[0-9]+}/images", requireUserMw.RUMFn(galleriesC.ImageUpload)).Methods("POST")
 	r.HandleFunc("/galleries/{id:[0-9]+}/images/{filename}/delete", requireUserMw.RUMFn(galleriesC.ImageDelete)).Methods("POST")
+	// r.HandleFunc("/galleries/{id:[0-9]+}/images/link", requireUserMw.RUMFn(galleriesC.ImageViaLink)).Methods("POST")
+
+	// OAuth routes
+	r.HandleFunc("/oauth/{service:[a-z]+}/connect", requireUserMw.RUMFn(oauthsC.Connect))
+	r.HandleFunc("/oauth/{service:[a-z]+}/callback", requireUserMw.RUMFn(oauthsC.Callback))
+	r.HandleFunc("/oauth/{service:[a-z]+}/test", requireUserMw.RUMFn(oauthsC.DropboxTest))
 
 	// Assets
 	assetHandler := http.FileServer(http.Dir("./assets/"))

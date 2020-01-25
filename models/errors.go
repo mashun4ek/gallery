@@ -19,6 +19,8 @@ const (
 	ErrPasswordRequired modelError = "models: Password is required"
 	// ErrTitleRequired is returned when title is not provided when gallery is creating
 	ErrTitleRequired modelError = "models: title of the gallery is required"
+	// ErrTokenInvalid is returned if token is expired for reset password
+	ErrTokenInvalid modelError = "models: token provided is invalid"
 
 	// ErrIDInvalid when invalid ID provided (Delete method)
 	ErrIDInvalid privateError = "models: ID must be > 0"
@@ -28,6 +30,8 @@ const (
 	ErrRememberRequired privateError = "models: remember token is required"
 	// ErrRememberTooShort is returned when the remember token is less than 32 bytes
 	ErrRememberTooShort privateError = "models: Remember token must be at least 32 bytes"
+	// ErrServiceRequired
+	ErrServiceRequired privateError = "models: service is required"
 )
 
 type modelError string

@@ -1,11 +1,9 @@
+// checked
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"time"
-
-	"github.com/gorilla/schema"
 
 	"github.com/mashun4ek/webdevcalhoun/gallery/context"
 	"github.com/mashun4ek/webdevcalhoun/gallery/email"
@@ -17,23 +15,29 @@ import (
 // NewUser is used to create a new Users controller
 func NewUsers(us models.UserService, emailer *email.Client) *Users {
 	return &Users{
-		NewView:   views.NewView("bootstrap", "users/new"),
-		LoginView: views.NewView("bootstrap", "users/login"),
-		us:        us,
-		emailer:   emailer,
+		NewView:      views.NewView("bootstrap", "users/new"),
+		LoginView:    views.NewView("bootstrap", "users/login"),
+		ForgotPwView: views.NewView("bootstrap", "users/forgot_pw"),
+		ResetPwView:  views.NewView("bootstrap", "users/reset_pw"),
+		us:           us,
+		emailer:      emailer,
 	}
 }
 
 type Users struct {
-	NewView   *views.View
-	LoginView *views.View
-	us        models.UserService
-	emailer   *email.Client
+	NewView      *views.View
+	LoginView    *views.View
+	ForgotPwView *views.View
+	ResetPwView  *views.View
+	us           models.UserService
+	emailer      *email.Client
 }
 
 // New renders the form where user can create a new user account
 func (u *Users) New(w http.ResponseWriter, r *http.Request) {
-	u.NewView.Render(w, r, nil)
+	var form SignupForm
+	parseURLParams(r, &form)
+	u.NewView.Render(w, r, form)
 }
 
 type SignupForm struct {
@@ -46,6 +50,8 @@ type SignupForm struct {
 func (u *Users) Create(w http.ResponseWriter, r *http.Request) {
 	var vd views.Data
 	var form SignupForm
+	// to persist a data from sighup form
+	vd.Yield = &form
 	if err := parseForm(r, &form); err != nil {
 		vd.SetAlert(err)
 		u.NewView.Render(w, r, vd)
@@ -127,17 +133,91 @@ func (u *Users) Logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-// Update ...
-func (u *Users) Update(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		panic(err)
+// // Update ...
+// func (u *Users) Update(w http.ResponseWriter, r *http.Request) {
+// 	if err := r.ParseForm(); err != nil {
+// 		panic(err)
+// 	}
+// 	dec := schema.NewDecoder()
+// 	var form SignupForm
+// 	if err := dec.Decode(&form, r.PostForm); err != nil {
+// 		panic(err)
+// 	}
+// 	fmt.Fprintln(w, form)
+// }
+
+// ResetPwForm is used to process the forgot password form and the reset password form
+type ResetPwForm struct {
+	Email    string `schema:"email"`
+	Token    string `schema:"token"`
+	Password string `schema:"password"`
+}
+
+// POST /forgot
+func (u *Users) InitiateReset(w http.ResponseWriter, r *http.Request) {
+	var vd views.Data
+	var form ResetPwForm
+	vd.Yield = &form
+	if err := parseForm(r, &form); err != nil {
+		vd.SetAlert(err)
+		u.ForgotPwView.Render(w, r, vd)
+		return
 	}
-	dec := schema.NewDecoder()
-	var form SignupForm
-	if err := dec.Decode(&form, r.PostForm); err != nil {
-		panic(err)
+	token, err := u.us.InitiateReset(form.Email)
+	if err != nil {
+		vd.SetAlert(err)
+		u.ForgotPwView.Render(w, r, vd)
+		return
 	}
-	fmt.Fprintln(w, form)
+	// send the user an email with token and password reset instruction
+	err = u.emailer.ResetPw(form.Email, token)
+	if err != nil {
+		vd.SetAlert(err)
+		u.ForgotPwView.Render(w, r, vd)
+		return
+	}
+	views.RedirectAlert(w, r, "/reset", http.StatusFound, views.Alert{
+		Level:   views.AlertLvSuccess,
+		Message: "Instruction for resetting your password have been emailed to you.",
+	})
+}
+
+// ResetPw displays the reset password form and has a method so that we can prefill the form data with a token provided via the URL query params
+// GET /reset
+func (u *Users) ResetPw(w http.ResponseWriter, r *http.Request) {
+	var vd views.Data
+	var form ResetPwForm
+	vd.Yield = &form
+	if err := parseURLParams(r, &form); err != nil {
+		vd.SetAlert(err)
+		u.ResetPwView.Render(w, r, vd)
+		return
+	}
+	u.ResetPwView.Render(w, r, vd)
+}
+
+// POST /reset
+func (u *Users) CompleteReset(w http.ResponseWriter, r *http.Request) {
+	var vd views.Data
+	var form ResetPwForm
+	vd.Yield = &form
+	if err := parseForm(r, &form); err != nil {
+		vd.SetAlert(err)
+		u.ResetPwView.Render(w, r, vd)
+		return
+	}
+	user, err := u.us.CompleteReset(form.Token, form.Password)
+	if err != nil {
+		vd.SetAlert(err)
+		u.ResetPwView.Render(w, r, vd)
+		return
+	}
+	u.signIn(w, user)
+	views.RedirectAlert(w, r, "/galleries", http.StatusFound, views.Alert{
+		Level:   views.AlertLvSuccess,
+		Message: "Your password has been reset and you have been logged in!",
+	})
+
 }
 
 // signIn sets a cookie
