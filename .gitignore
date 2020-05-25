@@ -1,2 +1,3 @@
 // Don't include images folder and uploaded images
 images/**
+.config
