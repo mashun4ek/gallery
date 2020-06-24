@@ -28,6 +28,8 @@ const (
 	ErrRememberRequired privateError = "models: remember token is required"
 	// ErrRememberTooShort is returned when the remember token is less than 32 bytes
 	ErrRememberTooShort privateError = "models: Remember token must be at least 32 bytes"
+
+	ErrTokenInvalid modelError = "models: token provided is not valid"
 )
 
 type modelError string
@@ -38,7 +40,9 @@ func (e modelError) Error() string {
 
 func (e modelError) Public() string {
 	s := strings.Replace(string(e), "models: ", "", 1)
-	return s
+	split := strings.Split(s, " ")
+	split[0] = strings.Title(split[0])
+	return strings.Join(split, " ")
 }
 
 type privateError string

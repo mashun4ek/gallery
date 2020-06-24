@@ -145,7 +145,7 @@ func (g *Galleries) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vd.Alert = &views.Alert{
-		Level:   views.AlertLvSuccess,
+		Level:   views.AlertLvlSuccess,
 		Message: "Gallery successfully updated!",
 	}
 	g.EditView.Render(w, r, vd)
@@ -222,6 +222,7 @@ func (g *Galleries) ImageDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	url, err := g.r.Get(EditGallery).URL("id", fmt.Sprintf("%v", gallery.ID))
 	if err != nil {
+		log.Println(err)
 		http.Redirect(w, r, "/galleries", http.StatusFound)
 		return
 	}
@@ -245,6 +246,7 @@ func (g *Galleries) Delete(w http.ResponseWriter, r *http.Request) {
 		vd.SetAlert(err)
 		vd.Yield = gallery
 		g.EditView.Render(w, r, vd)
+		return
 	}
 	http.Redirect(w, r, "/galleries", http.StatusFound)
 }

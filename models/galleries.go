@@ -36,7 +36,7 @@ type GalleryDB interface {
 }
 
 func NewGalleryService(db *gorm.DB) GalleryService {
-	return galleryService{
+	return &galleryService{
 		GalleryDB: &galleryValidator{
 			&galleryGorm{db},
 		},
@@ -73,8 +73,6 @@ func (gv *galleryValidator) Update(gallery *Gallery) error {
 
 // Delete gallery validator
 func (gv *galleryValidator) Delete(id uint) error {
-	var gallery Gallery
-	gallery.ID = id
 	if id <= 0 {
 		return ErrIDInvalid
 	}
@@ -116,7 +114,8 @@ func (gg *galleryGorm) Create(gallery *Gallery) error {
 
 // Update gallery
 func (gg *galleryGorm) Update(gallery *Gallery) error {
-	return gg.db.Update(gallery).Error
+	// return gg.db.Update(gallery).Error
+	return gg.db.Save(gallery).Error
 }
 
 // Delete user

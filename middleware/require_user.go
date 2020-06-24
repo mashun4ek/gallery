@@ -16,28 +16,6 @@ func (mw *User) RequireUserMiddleware(next http.Handler) http.HandlerFunc {
 	return mw.RUMFn(next.ServeHTTP)
 }
 
-// RequireUser assumes that User has already been run, otherwise it won't work correctly
-type RequireUser struct {
-	User
-}
-
-// RequireUserMiddleware assumes that User has already been run, otherwise it won't work correctly
-func (mw *RequireUser) RequireUserMiddleware(next http.Handler) http.HandlerFunc {
-	return mw.RUMFn(next.ServeHTTP)
-}
-
-// RUMFn assumes that User has already been run, otherwise it won't work correctly
-func (mw *RequireUser) RUMFn(next http.HandlerFunc) http.HandlerFunc {
-	return mw.User.RUMFn(func(w http.ResponseWriter, r *http.Request) {
-		user := context.User(r.Context())
-		if user != nil {
-			http.Redirect(w, r, "/login", http.StatusFound)
-			return
-		}
-		next(w, r)
-	})
-}
-
 func (mw *User) RUMFn(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -62,4 +40,26 @@ func (mw *User) RUMFn(next http.HandlerFunc) http.HandlerFunc {
 		next(w, r)
 	})
 
+}
+
+// RequireUser assumes that User has already been run, otherwise it won't work correctly
+type RequireUser struct {
+	User
+}
+
+// RequireUserMiddleware assumes that User has already been run, otherwise it won't work correctly
+func (mw *RequireUser) RequireUserMiddleware(next http.Handler) http.HandlerFunc {
+	return mw.RUMFn(next.ServeHTTP)
+}
+
+// RUMFn assumes that User has already been run, otherwise it won't work correctly
+func (mw *RequireUser) RUMFn(next http.HandlerFunc) http.HandlerFunc {
+	return mw.User.RUMFn(func(w http.ResponseWriter, r *http.Request) {
+		user := context.User(r.Context())
+		if user != nil {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		next(w, r)
+	})
 }

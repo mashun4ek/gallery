@@ -60,10 +60,6 @@ func (is *imageService) Create(galleryID uint, r io.ReadCloser, filename string)
 	return nil
 }
 
-func (is *imageService) Delete(i *Image) error {
-	return os.Remove(i.RelativePath())
-}
-
 func (is *imageService) ByGalleryID(galleryID uint) ([]Image, error) {
 	path := is.imagePath(galleryID)
 	imgStrings, err := filepath.Glob(path + "*")
@@ -79,6 +75,10 @@ func (is *imageService) ByGalleryID(galleryID uint) ([]Image, error) {
 		}
 	}
 	return ret, nil
+}
+
+func (is *imageService) Delete(i *Image) error {
+	return os.Remove(i.RelativePath())
 }
 
 func (is *imageService) imagePath(galleryID uint) string {
